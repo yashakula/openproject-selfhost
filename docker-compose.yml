@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  openproject:
+    image: openproject/openproject:16
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - OPENPROJECT_HOST__NAME=${OPENPROJECT_HOST}
+      - OPENPROJECT_HTTPS=true
+      - OPENPROJECT_DEFAULT__LANGUAGE=en
+    volumes:
+      - openproject-pgdata:/var/openproject/pgdata
+      - openproject-assets:/var/openproject/assets
+    networks:
+      - openproject-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health_checks/default"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - openproject-network
+    depends_on:
+      openproject:
+        condition: service_healthy
+
+volumes:
+  openproject-pgdata:
+  openproject-assets:
+
+networks:
+  openproject-network:
+    driver: bridge
